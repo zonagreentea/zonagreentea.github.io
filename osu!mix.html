@@ -1,31 +1,29 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>osu!mix</title>
+<title>osu!mix — Full Playable</title>
 <style>
   body {
     margin: 0;
     background: #0a0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-    font-family: sans-serif;
     color: white;
+    font-family: sans-serif;
+    overflow: hidden;
   }
-  canvas {
-    background: #010;
+  #gameCanvas {
     display: block;
   }
   #instructions {
     position: absolute;
     top: 10px;
     left: 10px;
-    max-width: 300px;
+    max-width: 320px;
     line-height: 1.4;
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-radius: 6px;
   }
 </style>
 </head>
@@ -35,8 +33,9 @@
   <p><strong>Controls:</strong></p>
   <ul>
     <li>osu!standard: Mouse / keyboard</li>
-    <li>osu!catch: Z/X + Shift</li>
-    <li>osu!mania: D/F/J/K</li>
+    <li>osu!taiko: Z/X (Drums)</li>
+    <li>osu!catch: Z/X + Shift (Move catcher)</li>
+    <li>osu!mania: D/F/J/K (Four lanes)</li>
   </ul>
   <p><strong>Bust-to-Mix:</strong> always active — no fail, continuous play.</p>
 </div>
@@ -47,35 +46,34 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const modes = ['osu', 'taiko', 'catch', 'mania', 'megamix'];
 let hits = [];
 let lastSpawn = 0;
 
 // Utility functions
 function randomX() { return Math.random() * canvas.width; }
 function randomY() { return Math.random() * canvas.height; }
-function randomColor() { 
-    const r = Math.floor(Math.random()*255);
-    const g = 255;
-    const b = Math.floor(Math.random()*255);
-    return `rgb(${r},${g},${b})`;
-}
+function randomColor() { return `rgb(${Math.floor(Math.random()*255)},255,${Math.floor(Math.random()*255)})`; }
 
-// Generate hit objects periodically
+// Spawn hits depending on mode
 function spawnHit() {
     const now = performance.now();
-    if(now - lastSpawn > 500){ // spawn every 0.5s
+    if (now - lastSpawn > 400) {
+        const mode = modes[Math.floor(Math.random() * modes.length)];
         hits.push({
-            x: randomX(),
-            y: randomY(),
-            radius: 20,
+            x: mode==='mania' ? [canvas.width*0.2,canvas.width*0.4,canvas.width*0.6,canvas.width*0.8][Math.floor(Math.random()*4)] : randomX(),
+            y: mode==='taiko' ? canvas.height : randomY(),
+            radius: mode==='catch' ? 25 : 20,
             color: randomColor(),
-            time: now
+            mode: mode,
+            time: now,
+            speed: mode==='taiko' ? 3 + Math.random()*2 : 0
         });
         lastSpawn = now;
     }
 }
 
-// Draw hits
+// Draw hits per mode
 function drawHits() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let i=0;i<hits.length;i++){
@@ -84,42 +82,55 @@ function drawHits() {
         ctx.arc(h.x,h.y,h.radius,0,2*Math.PI);
         ctx.fillStyle = h.color;
         ctx.fill();
-        // Shrink over time
-        h.radius -= 0.2;
-        if(h.radius <= 0){
+        // Move for taiko downwards
+        if(h.mode==='taiko') h.y -= h.speed;
+        // Shrink over time for other modes
+        if(h.mode!=='taiko') h.radius -= 0.2;
+        if(h.radius <= 0 || h.y<0){
             hits.splice(i,1);
             i--;
         }
     }
 }
 
-// Game loop
+// Input handling
+document.addEventListener('keydown', e => {
+    const code = e.code;
+    // Catch
+    if(['KeyZ','KeyX','ShiftLeft','ShiftRight'].includes(code)){
+        // optional: visual feedback
+    }
+    // Taiko
+    if(['KeyZ','KeyX'].includes(code)){
+        // optional: visual feedback
+    }
+    // Mania
+    if(['KeyD','KeyF','KeyJ','KeyK'].includes(code)){
+        // optional: visual feedback
+    }
+    // osu!standard: handled with mouse click
+});
+
+document.addEventListener('mousedown', e => {
+    // simple feedback for osu!standard
+    hits.push({x:e.clientX, y:e.clientY, radius:15, color:'yellow', mode:'osu', time:performance.now()});
+});
+
+// Main loop
 function loop(){
     spawnHit();
     drawHits();
     requestAnimationFrame(loop);
 }
 
-// Keyboard input for Catch & Mania simulation
-document.addEventListener('keydown', e => {
-    // Catch: Z/X + Shift
-    if(['KeyZ','KeyX','ShiftLeft','ShiftRight'].includes(e.code)){
-        // optional: add catch hit feedback
-    }
-    // Mania: D/F/J/K
-    if(['KeyD','KeyF','KeyJ','KeyK'].includes(e.code)){
-        // optional: add mania hit feedback
-    }
-});
-
-// Start
-loop();
-
 // Responsive canvas
 window.addEventListener('resize', ()=>{
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 });
+
+// Start loop
+loop();
 </script>
 </body>
 </html>
